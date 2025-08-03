@@ -46,7 +46,8 @@ def launch():
     # Try unwrap torch.compile
     try:
         train_state.model.load_state_dict(torch.load(eval_cfg.checkpoint, map_location="cuda"), assign=True)
-    except:
+    except (RuntimeError, KeyError) as e:
+        # Handle torch.compile wrapper keys by removing "_orig_mod." prefix
         train_state.model.load_state_dict({k.removeprefix("_orig_mod."): v for k, v in torch.load(eval_cfg.checkpoint, map_location="cuda").items()}, assign=True)
     
     train_state.step = 0
