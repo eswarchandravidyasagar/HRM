@@ -110,7 +110,7 @@ def _sparse_emb_signsgd_dist(
     all_weights_grad = local_weights_grad
     all_ids = local_ids
 
-    if world_size > 1:
+    if world_size > 1 and dist.is_initialized():
         all_weights_grad = torch.empty((world_size * N, D), dtype=local_weights_grad.dtype, device=local_weights_grad.device)
         all_ids = torch.empty(world_size * N,               dtype=local_ids.dtype,          device=local_ids.device)
     
