@@ -128,7 +128,7 @@ def create_model(config: PretrainConfig, train_metadata: PuzzleDatasetMetadata, 
             model = torch.compile(model, dynamic=False)  # type: ignore
 
         # Broadcast parameters from rank 0
-        if world_size > 1:
+        if world_size > 1 and dist.is_initialized():
             with torch.no_grad():
                 for param in list(model.parameters()) + list(model.buffers()):
                     dist.broadcast(param, src=0)
@@ -225,7 +225,7 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
     ((1 / global_batch_size) * loss).backward()
 
     # Allreduce
-    if world_size > 1:
+    if world_size > 1 and dist.is_initialized():
         for param in train_state.model.parameters():
             if param.grad is not None:
                 dist.all_reduce(param.grad)
@@ -248,7 +248,7 @@ def train_batch(config: PretrainConfig, train_state: TrainState, batch: Any, glo
         metric_keys = list(sorted(metrics.keys()))  # Sort keys to guarantee all processes use the same order.
         # Reduce and reconstruct
         metric_values = torch.stack([metrics[k] for k in metric_keys])
-        if world_size > 1:
+        if world_size > 1 and dist.is_initialized():
             dist.reduce(metric_values, dst=0)
 
         if rank == 0:
@@ -314,7 +314,7 @@ def evaluate(config: PretrainConfig, train_state: TrainState, eval_loader: torch
         # Logging
         # Reduce to rank 0
         if metric_values is not None:
-            if world_size > 1:
+            if world_size > 1 and dist.is_initialized():
                 dist.reduce(metric_values, dst=0)
             
             if rank == 0:
@@ -371,7 +371,7 @@ def load_synced_config(hydra_config: DictConfig, rank: int, world_size: int) -> 
 
         objects = [config]
 
-    if world_size > 1:
+    if world_size > 1 and dist.is_initialized():
         dist.broadcast_object_list(objects, src=0)
 
     return objects[0]  # type: ignore
